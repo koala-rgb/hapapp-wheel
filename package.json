@@ -1,0 +1,14 @@
+{
+  "name": "harvest-choice-wheel",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Local autumn-themed spin wheel with a persistent SQLite database.",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node --disable-warning=ExperimentalWarning server.js"
+  },
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "dependencies": {}
+}

@@ -1,0 +1,733 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#110c09" />
+  <title>HapApp — Spin the Wheel</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #110c09;
+      --panel: rgba(38, 27, 20, .86);
+      --panel-strong: #281b12;
+      --line: rgba(255, 225, 190, .11);
+      --muted: #b7a08d;
+      --text: #fff3e5;
+      --autumn: #ffb454;
+      --autumn-ink: #35190b;
+      --radius: 25px;
+    }
+    * { box-sizing: border-box; }
+    html { min-width: 320px; background: var(--bg); }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(800px 560px at 13% -4%, rgba(191, 91, 40, .22), transparent 62%),
+        radial-gradient(660px 500px at 98% 18%, rgba(112, 125, 68, .16), transparent 64%),
+        linear-gradient(155deg, #1a100b 0%, #110c09 58%, #19100b 100%);
+      letter-spacing: -.012em;
+    }
+    body::before {
+      content: ""; position: fixed; inset: 0; pointer-events: none; opacity: .15;
+      background-image: radial-gradient(rgba(255,255,255,.23) .55px, transparent .55px);
+      background-size: 7px 7px; mask-image: linear-gradient(to bottom, black, transparent 88%);
+    }
+    button, input, textarea { font: inherit; }
+    button { cursor: pointer; }
+    button:focus-visible, textarea:focus-visible, input:focus-visible, label:focus-visible { outline: 2px solid var(--autumn); outline-offset: 3px; }
+    .app-shell { position: relative; width: min(1370px, 100%); margin: 0 auto; padding: 26px clamp(16px, 3vw, 42px) 30px; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 31px; }
+    .brand { display: flex; align-items: center; gap: 11px; font-size: 13px; font-weight: 760; letter-spacing: .13em; text-transform: uppercase; }
+    .brand-mark { width: 34px; height: 34px; display: grid; place-items: center; border: 1px solid rgba(255,180,84,.38); background: rgba(255,180,84,.08); border-radius: 12px; color: var(--autumn); box-shadow: 0 0 27px rgba(255,180,84,.06); }
+    .brand-mark svg { width: 19px; height: 19px; }
+    .top-meta { display: flex; align-items: center; gap: 9px; border: 1px solid var(--line); background: rgba(255,224,190,.035); color: #dbc2a6; border-radius: 999px; padding: 8px 12px; font-size: 11px; font-weight: 650; letter-spacing: .08em; text-transform: uppercase; }
+    .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--autumn); box-shadow: 0 0 10px rgba(255,180,84,.8); }
+    .intro { display: flex; align-items: end; justify-content: space-between; gap: 25px; margin-bottom: 24px; }
+    .eyebrow { display: flex; align-items: center; gap: 9px; color: var(--autumn); font-size: 10px; line-height: 1.4; font-weight: 750; letter-spacing: .19em; text-transform: uppercase; margin-bottom: 12px; }
+    .eyebrow-line { width: 24px; height: 1px; background: var(--autumn); opacity: .8; }
+    h1 { margin: 0; font-size: clamp(30px, 4vw, 49px); line-height: 1.04; letter-spacing: -.055em; font-weight: 720; }
+    .lede { margin: 13px 0 0; color: var(--muted); font-size: 14px; line-height: 1.65; max-width: 510px; }
+    .shortcut { flex: 0 0 auto; color: #ad937c; font-size: 11px; display: flex; align-items: center; gap: 8px; padding-bottom: 3px; }
+    kbd { color: #ead3b8; background: #382619; border: 1px solid #5b4231; border-bottom-width: 2px; border-radius: 6px; padding: 3px 7px; font-family: inherit; font-size: 10px; }
+    .workspace { display: grid; grid-template-columns: minmax(0, 1.43fr) minmax(305px, .72fr); gap: 18px; align-items: stretch; }
+    .panel { position: relative; min-width: 0; border: 1px solid var(--line); border-radius: var(--radius); background: linear-gradient(145deg, rgba(47,31,21,.88), rgba(25,16,11,.9)); box-shadow: 0 25px 85px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,224,190,.035); overflow: hidden; }
+    .wheel-panel { display: flex; flex-direction: column; align-items: center; min-height: 690px; padding: 25px 24px 24px; }
+    .panel-topline { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+    .panel-label { color: #d0b59a; font-size: 10px; font-weight: 750; text-transform: uppercase; letter-spacing: .14em; }
+    .tiny-pill { color: #d0b79c; border: 1px solid rgba(255,224,190,.10); border-radius: 999px; padding: 6px 9px; font-size: 10px; white-space: nowrap; }
+    .tiny-pill strong { color: var(--autumn); font-weight: 750; }
+    .wheel-stage { position: relative; width: min(100%, 592px); margin: 12px auto 0; aspect-ratio: 1; display: grid; place-items: center; isolation: isolate; }
+    .wheel-stage::before { content: ""; position: absolute; width: 74%; aspect-ratio: 1; border-radius: 50%; background: rgba(197,103,48,.16); filter: blur(48px); z-index: -1; }
+    #wheelSvg { display: block; width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 18px 24px rgba(0,0,0,.31)); }
+    /* Wheel motion uses the SVG rotate(angle 320 320) transform in viewBox coordinates.
+       Keep CSS transform-origin unset; pixel-based origins can shift the wheel responsively. */
+    .pointer { filter: drop-shadow(0 5px 10px rgba(0,0,0,.4)); }
+    .spin-row { width: min(100%, 440px); display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; margin-top: -2px; z-index: 1; }
+    .spin-button { position: relative; min-height: 56px; border: 0; border-radius: 16px; color: var(--autumn-ink); background: linear-gradient(135deg, #ffd18a, #e98b45); font-weight: 800; font-size: 14px; box-shadow: 0 9px 28px rgba(224,125,57,.14), inset 0 1px 0 rgba(255,255,255,.7); transition: transform .18s ease, filter .18s ease, box-shadow .18s ease; }
+    .spin-button:hover:not(:disabled) { transform: translateY(-2px); filter: brightness(1.04); box-shadow: 0 12px 35px rgba(224,125,57,.22), inset 0 1px 0 rgba(255,255,255,.7); }
+    .spin-button:active:not(:disabled) { transform: translateY(0) scale(.99); }
+    .spin-button:disabled { cursor: not-allowed; filter: saturate(.5); opacity: .62; }
+    .spin-button .button-icon { display: inline-block; font-size: 17px; vertical-align: -1px; margin-right: 9px; }
+    .icon-button { display: grid; place-items: center; width: 56px; border: 1px solid rgba(255,224,190,.12); color: #e2c8ab; background: rgba(255,224,190,.045); border-radius: 16px; transition: background .18s, color .18s; }
+    .icon-button:hover { background: rgba(255,224,190,.09); color: white; }
+    .icon-button svg { width: 19px; height: 19px; }
+    .result-wrap { width: min(100%, 440px); margin-top: 14px; min-height: 72px; }
+    .result-card { display: flex; align-items: center; gap: 12px; border: 1px solid rgba(255,180,84,.22); background: linear-gradient(100deg, rgba(255,180,84,.075), rgba(255,180,84,.018)); border-radius: 15px; padding: 12px 15px; animation: reveal .35s ease both; }
+    .result-star { flex: 0 0 auto; width: 34px; height: 34px; display: grid; place-items: center; border-radius: 11px; color: var(--autumn); background: rgba(255,180,84,.1); }
+    .result-star svg { width: 18px; height: 18px; }
+    .result-copy { min-width: 0; flex: 1; }
+    .result-kicker { font-size: 9px; font-weight: 800; letter-spacing: .16em; color: var(--autumn); text-transform: uppercase; margin-bottom: 3px; }
+    #resultText { overflow-wrap: anywhere; font-size: 16px; line-height: 1.3; font-weight: 750; letter-spacing: -.025em; }
+    .result-placeholder { height: 72px; display: flex; align-items: center; justify-content: center; gap: 7px; color: #ad937c; font-size: 11px; }
+    .result-placeholder svg { width: 14px; height: 14px; opacity: .75; }
+    .side-panel { padding: 25px 23px 21px; display: flex; flex-direction: column; }
+    .side-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 7px; }
+    h2 { font-size: 18px; letter-spacing: -.035em; margin: 0; font-weight: 730; }
+    .side-subtitle { color: var(--muted); font-size: 12px; line-height: 1.55; margin: 7px 0 19px; }
+    .count-badge { display: inline-flex; align-items: center; justify-content: center; height: 26px; min-width: 30px; padding: 0 8px; border-radius: 9px; color: var(--autumn); background: rgba(255,180,84,.085); border: 1px solid rgba(255,180,84,.15); font-size: 11px; font-weight: 800; }
+    .config-label-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 8px; }
+    .field-label { color: #e7d1b7; font-size: 11px; font-weight: 700; }
+    .file-status { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 56%; color: #ac8c70; font-size: 10px; }
+    .choice-editor { width: 100%; min-height: 222px; resize: vertical; background: rgba(14,9,6,.34); color: #f8e8d5; border: 1px solid rgba(255,224,190,.13); border-radius: 13px; outline: none; padding: 13px 14px; line-height: 1.85; font-size: 12px; tab-size: 2; transition: border-color .2s, box-shadow .2s; }
+    .choice-editor:focus { border-color: rgba(255,180,84,.55); box-shadow: 0 0 0 3px rgba(255,180,84,.06); }
+    .editor-note { display: flex; justify-content: space-between; gap: 10px; margin-top: 8px; color: #ac8c70; font-size: 10px; line-height: 1.45; }
+    .editor-note code { color: #d7bf9e; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .editor-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-top: 14px; }
+    .secondary-button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 41px; padding: 0 10px; border-radius: 12px; border: 1px solid rgba(255,255,255,.115); color: #ecd8bf; background: rgba(255,224,190,.045); font-size: 11px; font-weight: 700; transition: background .18s, border-color .18s; }
+    .secondary-button:hover { background: rgba(255,255,255,.075); border-color: rgba(255,255,255,.2); }
+    .secondary-button svg { width: 14px; height: 14px; color: #c7a785; }
+    .secondary-button.primary-outline { border-color: rgba(255,180,84,.21); color: var(--autumn); background: rgba(255,180,84,.055); }
+    .secondary-button.primary-outline svg { color: var(--autumn); }
+    .divider { height: 1px; background: rgba(255,255,255,.075); margin: 23px 0 18px; }
+    .section-heading { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 13px; }
+    .section-heading h3 { margin: 0; color: #fff0df; font-size: 12px; font-weight: 750; letter-spacing: -.01em; }
+    .subtle-action { padding: 3px 0; border: 0; background: none; color: #ba9c80; font-size: 10px; }
+    .subtle-action:hover { color: var(--autumn); }
+    .history-list { display: flex; flex-direction: column; gap: 8px; }
+    .history-empty { border: 1px dashed rgba(255,224,190,.12); border-radius: 12px; color: #ad937c; min-height: 55px; display: flex; align-items: center; justify-content: center; font-size: 11px; text-align: center; padding: 10px; }
+    .history-item { display: flex; align-items: center; gap: 10px; border: 1px solid rgba(255,255,255,.065); background: rgba(255,255,255,.02); border-radius: 11px; padding: 10px 11px; min-width: 0; animation: reveal .25s ease both; }
+    .history-number { color: #ad8c6b; font-size: 10px; font-weight: 800; font-variant-numeric: tabular-nums; }
+    .history-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; color: #f7e5cf; }
+    .history-time { color: #ad937c; font-size: 9px; }
+    .remove-toggle { display: flex; align-items: center; justify-content: space-between; gap: 12px; border: 1px solid rgba(255,255,255,.075); border-radius: 12px; padding: 11px 12px; margin-top: 18px; background: rgba(255,255,255,.02); }
+    .toggle-copy { min-width: 0; }
+    .toggle-title { color: #ead1b6; font-size: 11px; font-weight: 700; }
+    .toggle-help { color: #ab8a6c; font-size: 10px; margin-top: 4px; line-height: 1.35; }
+    .switch { position: relative; flex: 0 0 auto; width: 36px; height: 21px; }
+    .switch input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+    .switch-track { position: absolute; inset: 0; background: #4b382b; border: 1px solid rgba(255,224,190,.12); border-radius: 99px; transition: background .2s; cursor: pointer; }
+    .switch-track::after { content: ""; position: absolute; width: 13px; height: 13px; left: 3px; top: 3px; background: #b69a7d; border-radius: 50%; transition: transform .2s, background .2s; }
+    .switch input:checked + .switch-track { background: rgba(255,180,84,.27); border-color: rgba(255,180,84,.5); }
+    .switch input:checked + .switch-track::after { transform: translateX(15px); background: var(--autumn); }
+    .switch input:focus-visible + .switch-track { outline: 2px solid var(--autumn); outline-offset: 3px; }
+    .footer { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 19px 4px 0; color: #927a65; font-size: 10px; }
+    .footer-left { display: flex; align-items: center; gap: 7px; }
+    .footer svg { width: 13px; height: 13px; color: #b49a80; }
+    .toast { position: fixed; left: 50%; bottom: 24px; z-index: 10; transform: translate(-50%, 16px); opacity: 0; pointer-events: none; display: flex; align-items: center; gap: 9px; max-width: calc(100vw - 28px); padding: 12px 16px; border: 1px solid rgba(255,224,190,.16); border-radius: 13px; color: #fff0df; background: rgba(39,25,16,.97); box-shadow: 0 14px 42px rgba(0,0,0,.4); font-size: 12px; transition: opacity .22s, transform .22s; }
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+    .toast-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--autumn); }
+    .celebration { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 4; }
+    .confetti-piece { position: absolute; top: -12px; width: 7px; height: 12px; border-radius: 2px; opacity: 0; animation: confetti-fall var(--fall, 1.7s) cubic-bezier(.1,.6,.2,1) forwards; animation-delay: var(--delay, 0ms); }
+    .wheel-panel.is-spinning .spin-button { animation: pulse 1.2s ease-in-out infinite; }
+    @keyframes reveal { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes pulse { 0%,100% { box-shadow: 0 9px 28px rgba(224,125,57,.12); } 50% { box-shadow: 0 9px 34px rgba(224,125,57,.32); } }
+    @keyframes confetti-fall { 0% { opacity: 0; transform: translate3d(0,-10px,0) rotate(0); } 10% { opacity: 1; } 100% { opacity: 0; transform: translate3d(var(--drift, 10px), var(--distance, 300px), 0) rotate(var(--spin, 500deg)); } }
+    @media (min-width: 1150px) { .wheel-panel { min-height: 730px; } }
+    @media (max-width: 930px) {
+      .workspace { grid-template-columns: minmax(0, 1fr); }
+      .wheel-panel { min-height: auto; }
+      .side-panel { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 25px; }
+      .side-panel > .side-heading, .side-panel > .side-subtitle, .side-panel > .config-label-row, .side-panel > .choice-editor, .side-panel > .editor-note, .side-panel > .editor-actions { grid-column: 1; }
+      .side-panel > .divider, .side-panel > .section-heading, .side-panel > .history-list, .side-panel > .remove-toggle { grid-column: 2; }
+      .side-panel > .divider { grid-row: 1 / span 1; height: 0; margin: 0; }
+      .side-panel > .section-heading { grid-row: 1; }
+      .side-panel > .history-list { grid-row: 2 / span 4; align-self: start; }
+      .side-panel > .remove-toggle { grid-row: 7; align-self: end; }
+    }
+    @media (max-width: 600px) {
+      .app-shell { padding: 18px 12px 22px; }
+      .topbar { margin-bottom: 27px; }
+      .brand { font-size: 11px; letter-spacing: .1em; }
+      .brand-mark { width: 31px; height: 31px; }
+      .top-meta { font-size: 9px; padding: 7px 9px; }
+      .intro { align-items: flex-start; margin-bottom: 18px; }
+      .intro .shortcut { display: none; }
+      h1 { font-size: 34px; max-width: 350px; }
+      .lede { font-size: 12px; max-width: 330px; }
+      .wheel-panel { padding: 19px 13px 17px; border-radius: 20px; }
+      .wheel-stage { width: min(100%, 475px); margin-top: 9px; }
+      .spin-row { width: calc(100% - 8px); }
+      .spin-button { min-height: 52px; }
+      .icon-button { width: 52px; }
+      .result-wrap { width: calc(100% - 8px); }
+      .side-panel { display: flex; padding: 20px 17px; border-radius: 20px; }
+      .side-panel > .divider { height: 1px; margin: 22px 0 18px; }
+      .side-panel > .section-heading, .side-panel > .history-list, .side-panel > .remove-toggle { grid-column: auto; grid-row: auto; }
+      .choice-editor { min-height: 190px; }
+      .footer { align-items: flex-start; flex-direction: column; gap: 7px; padding-top: 14px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.2" stroke="currentColor" stroke-width="1.7"/><path d="M12 3.8v4.1m8.2 4.1h-4.1m-4.1 8.2v-4.1m-8.2-4.1h4.1" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="12" cy="12" r="2.2" fill="currentColor"/></svg>
+        </div>
+        <span>HapApp <span style="color:#b49477;font-weight:550">/ Spin the wheel</span></span>
+      </div>
+      <div class="top-meta"><span class="status-dot"></span> 127.0.0.1</div>
+    </header>
+
+    <section class="intro">
+      <div>
+        <div class="eyebrow"><span class="eyebrow-line"></span> Autumn Baking 2026 <span style="color:#ad896a">·</span> Randomized choice wheel</div>
+        <h1>Let fate make<br />the call.</h1>
+        <p class="lede">Feeling like an indecisive chud? No wonder. I mean, look at you, you freak idiot chud. Anyways, load your options, give the wheel a spin, and let fate decide what to bake.</p>
+      </div>
+      <div class="shortcut"><kbd>SPACE</kbd> to spin</div>
+    </section>
+
+    <main class="workspace">
+      <section class="panel wheel-panel" id="wheelPanel" aria-label="Spin wheel">
+        <div class="panel-topline">
+          <div class="panel-label">The wheel</div>
+          <div class="tiny-pill"><strong id="wheelCount">8</strong> options in play</div>
+        </div>
+        <div class="wheel-stage" id="wheelStage">
+          <svg id="wheelSvg" viewBox="0 0 640 640" role="img" aria-label="A colorful wheel with your choices">
+            <circle cx="320" cy="320" r="302" fill="#160e09" stroke="rgba(255,224,190,.14)" stroke-width="1.5" />
+            <circle cx="320" cy="320" r="292" fill="#281a12" stroke="rgba(255,224,190,.10)" stroke-width="3" />
+            <g id="wheelGroup"></g>
+            <g id="labelGroup"></g>
+            <g id="wheelHub" aria-hidden="true">
+              <circle cx="320" cy="320" r="49" fill="#2b1b12" stroke="rgba(255,239,215,.78)" stroke-width="2.2" />
+              <circle cx="320" cy="320" r="41" fill="#3c2819" stroke="rgba(255,224,190,.18)" stroke-width="1" />
+              <path d="M6.7552516 12.9749c0-.014.026-.6078.057-1.3203.07-1.5937.069-1.5091.014-1.5845-.05-.069-.1077-.1023-.1772-.1023-.083 0-.6683.078-1.4387.1904-.7811.1145-1.2022.1714-1.2088.1634 0 0 .049-.178.114-.3894.1362-.4432.1431-.4966.081-.6202-.037-.072-.1235-.1458-1.3903-1.174-.7431-.6032-1.3498-1.1029-1.3482-1.1104 0-.01.1399-.078.3074-.1559.1674-.078.3208-.1578.3409-.1767.047-.044.06-.1153.039-.2162-.01-.044-.1191-.4536-.2445-.9098-.1254-.4562-.2262-.831-.224-.8328 0 0 .3498.069.7726.1586.4228.089.7944.1619.8258.1619.071 0 .1472-.039.186-.096.016-.024.073-.1961.1262-.3829.053-.1868.101-.3477.1063-.3576.01-.012.2307.2294.6279.6742.34.3808.6426.7132.6725.7388.063.054.1597.085.2205.072.09-.02.1459-.1186.1458-.2569 0-.039-.1214-.7149-.2696-1.5015-.1483-.7867-.2675-1.4324-.2648-1.4351 0 0 .196.092.4297.2111.4084.2074.4284.2159.5121.2164.1052.0006.1874-.04.2375-.1163.018-.028.2467-.4496.5077-.937.2609-.4873.4788-.8861.4842-.8861.01 0 .2234.3988.4845.8861.261.4874.4894.9087.5074.9363.037.056.099.098.1693.1137.098.022.1873-.011.6018-.223.2219-.1136.4057-.2042.4084-.2014 0 0-.1162.6486-.2645 1.4353-.1502.7968-.2696 1.4661-.2696 1.5111-.0001.1929.1119.2909.2654.2322.036-.014.086-.043.1113-.065.025-.022.3239-.3516.6633-.7316.3964004-.444.6204004-.6845.6266004-.6729.01.01.053.1708.1064.3576.053.1868.1099.3591.1262.3829.039.057.1148.096.1859.096.032 0 .4031-.073.8259-.1619.4228-.089.7704-.1604.7726-.1586 0 0-.1026.3902-.2328.863s-.2401.8987-.2442.9464c-.011.1313.011.1499.3886.3264.1717.08.3122.1507.3122.1566 0 .01-.6085.5047-1.3523 1.1084-1.2679004 1.0292-1.3548004 1.1025-1.3915004 1.175-.063.1236-.056.177.081.6202.065.2114.1163.3866.114.3894-.01.01-.4278-.049-1.2088-.1634-.7893-.1157-1.3563-.1904-1.4447-.1904-.069 0-.1496.065-.1857.1494-.023.054-.022.1261.01 1.3025.018.6851.033 1.3208.034 1.4128l.0008.1673h-.2206c-.2007 0-.2207 0-.2206-.025z"/>
+              <!-- <path d="M320 276 L333 292 L349 285 L344 302 L360 306 L342 318 L350 332 L330 328 L320 349 L310 328 L290 332 L298 318 L280 306 L296 302 L291 285 L307 292 Z" fill="#ffb454" stroke="#ffe1ad" stroke-width="1.25" stroke-linejoin="round" />
+              <path d="M320 339 L320 357 M320 341 L308 325 M320 341 L333 324" fill="none" stroke="#ffe1ad" stroke-width="2.5" stroke-linecap="round" /> -->
+            </g>
+            <circle cx="320" cy="320" r="280" fill="none" stroke="rgba(255,239,215,.66)" stroke-width="1.5" pointer-events="none" />
+            <path class="pointer" d="M291 15 Q320 9 349 15 L337 48 Q320 69 303 48 Z" fill="#ffb454" stroke="#fff0cc" stroke-width="2" stroke-linejoin="round" />
+            <circle class="pointer" cx="320" cy="18" r="5" fill="#fff6e5" />
+          </svg>
+          <div class="celebration" id="celebration" aria-hidden="true"></div>
+        </div>
+        <div class="spin-row">
+          <button class="spin-button" id="spinButton" type="button"><span class="button-icon">✳</span> Spin the wheel</button>
+          <button class="icon-button" id="shuffleButton" type="button" aria-label="Shuffle the order of choices" title="Shuffle choice order">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21.924 6.617a.997.997 0 0 0-.217-.324l-3-3a1 1 0 1 0-1.414 1.414L18.586 6h-3.321a5 5 0 0 0-4.288 2.428l-3.67 6.115A3 3 0 0 1 4.736 16H3a1 1 0 1 0 0 2h1.735a5 5 0 0 0 4.288-2.428l3.67-6.115A3 3 0 0 1 15.264 8h3.32l-1.292 1.293a1 1 0 0 0 1.414 1.414l3-3A.997.997 0 0 0 22 7m-.076-.383a.996.996 0 0 1 .076.38l-.076-.38z" fill="#F5F5F5"/><path d="M21.706 17.708l-2.999 3a1 1 0 0 1-1.414-1.415L18.586 18h-3.321a5 5 0 0 1-4.288-2.428l-3.67-6.115A3 3 0 0 0 4.736 8H3a1 1 0 0 1 0-2h1.735a5 5 0 0 1 4.288 2.428l3.67 6.115A3 3 0 0 0 15.264 16h3.32l-1.292-1.293a1 1 0 0 1 1.414-1.414l3 3c.195.194.292.45.293.704V17a.997.997 0 0 1-.294.708z" fill="#F5F5F5"/>
+            </svg>
+          </button>
+        </div>
+        <div class="result-wrap" id="resultWrap" aria-live="polite" aria-atomic="true">
+          <div class="result-placeholder" id="resultPlaceholder">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="m12 3 1.9 5.8L20 11l-6.1 2.2L12 19l-1.9-5.8L4 11l6.1-2.2L12 3Z"/><path d="m19 16 .9 2.1L22 19l-2.1.9L19 22l-.9-2.1L16 19l2.1-.9L19 16Z"/></svg>
+            All choices are final, unless the boss deems otherwise.
+          </div>
+        </div>
+      </section>
+
+      <aside class="panel side-panel" aria-label="Wheel configuration and history">
+        <div class="side-heading">
+          <div><h2>Available Options</h2></div>
+          <span class="count-badge" id="optionCount">08</span>
+        </div>
+        <p class="side-subtitle">You can modify your options here. Press 'Apply Changes' to save any modifications.</p>
+        <div class="config-label-row">
+          <label class="field-label" for="choiceEditor">Choice list</label>
+          <span class="file-status" id="fileStatus" title="Current source">SQLite database</span>
+        </div>
+        <textarea class="choice-editor" id="choiceEditor" spellcheck="false" aria-label="Choices, one per line">Coffee
+Tea
+Tacos
+Sushi
+Pizza
+Burgers
+Pasta
+Surprise me</textarea>
+        <div class="editor-note"><span>One option per line</span><span>Saved to SQLite on Apply</span></div>
+        <div class="editor-actions">
+          <button class="secondary-button primary-outline" id="applyButton" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 4 4L19 6"/></svg> Apply Changes
+          </button>
+          <button class="secondary-button" id="resetButton" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 2.6-6.4L3 8"/><path d="M3 3v5h5"/></svg> Restore Defaults
+          </button>
+        </div>
+
+        <div class="divider"></div>
+        <div class="section-heading">
+          <h3>Recent results</h3>
+          <button class="subtle-action" id="clearHistoryButton" type="button">Clear history</button>
+        </div>
+        <div class="history-list" id="historyList">
+          <div class="history-empty">Nothing picked yet.<br />Your results will show up here.</div>
+        </div>
+        <div class="remove-toggle">
+          <div class="toggle-copy">
+            <div class="toggle-title">Remove winner after spin</div>
+            <div class="toggle-help">Each pick is unique until you reset the list.</div>
+          </div>
+          <label class="switch" aria-label="Remove winner after spin"><input id="removeWinnerToggle" type="checkbox" /><span class="switch-track"></span></label>
+        </div>
+      </aside>
+    </main>
+    <footer class="footer">
+      <div class="footer-left"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg> Traffic protected via AWS VPC encryption.</div>
+      <div>Developed by Matthew Luka</div>
+    </footer>
+  </div>
+  <div class="toast" id="toast" role="status"><span class="toast-dot"></span><span id="toastText"></span></div>
+
+  <script>
+    (() => {
+      'use strict';
+      const DEFAULT_CHOICES = ['Nutmeg Ginger Apple Snaps', 'Cinnamon Apple Fritters', 'Glazed Apple Spice Cookies', 'Apple Pie Cookies', 'Apple Brownies with Maple Glaze', 'Apple Cheesecake Brioche Buns', 'Cheesecake Stuffed Double Chocolate Banana Muffins', 'Apple Puff Pastry'];
+      const COLORS = ['#9c3d2f', '#b84b2c', '#866522', '#53683a', '#a33f34', '#b85e32', '#6d4b35', '#8a6428', '#3f6651', '#93442f', '#73502b', '#ad4931'];
+      const SVG_NS = 'http://www.w3.org/2000/svg';
+      const $ = (id) => document.getElementById(id);
+      const wheelGroup = $('wheelGroup');
+      const labelGroup = $('labelGroup');
+      const spinButton = $('spinButton');
+      const wheelPanel = $('wheelPanel');
+      const editor = $('choiceEditor');
+      const fileStatus = $('fileStatus');
+      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      let choices = [...DEFAULT_CHOICES];
+      let currentRotation = 0;
+      let spinning = false;
+      let loadingState = true;
+      let databaseUnavailable = false;
+      let savingChoices = false;
+      let history = [];
+      let toastTimeout = null;
+      let labelItems = [];
+
+      const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
+      const mod = (n, m) => ((n % m) + m) % m;
+      const svgEl = (tag, attrs = {}) => {
+        const el = document.createElementNS(SVG_NS, tag);
+        Object.entries(attrs).forEach(([key, value]) => el.setAttribute(key, String(value)));
+        return el;
+      };
+      const pointOnCircle = (angle, radius) => {
+        const rad = angle * Math.PI / 180;
+        return { x: 320 + Math.cos(rad) * radius, y: 320 + Math.sin(rad) * radius };
+      };
+
+      async function api(url, options = {}) {
+        const response = await fetch(url, {
+          cache: 'no-store',
+          ...options,
+          headers: { ...(options.body ? { 'Content-Type': 'application/json' } : {}), ...(options.headers || {}) }
+        });
+        let data;
+        try { data = await response.json(); }
+        catch { throw new Error('The server returned an unreadable response.'); }
+        if (!response.ok) throw new Error(data.error || `Request failed (${response.status}).`);
+        return data;
+      }
+
+      function parseChoices(raw) {
+        return raw.split(/\r?\n/)
+          .map((line) => line.trim())
+          .filter((line) => line && !line.startsWith('#') && !line.startsWith('//'))
+          .map((line) => line.replace(/^[-*]\s+/, '').trim())
+          .filter(Boolean);
+      }
+
+      function wrapLabel(label, maxChars) {
+        const words = label.split(/\s+/);
+        const lines = [];
+        let line = '';
+        for (const word of words) {
+          if (!line) line = word;
+          else if ((line + ' ' + word).length <= maxChars) line += ' ' + word;
+          else { lines.push(line); line = word; }
+        }
+        if (line) lines.push(line);
+        if (lines.length > 2) {
+          const last = lines.slice(1).join(' ');
+          lines.splice(1);
+          lines.push(last.length > maxChars ? last.slice(0, Math.max(1, maxChars - 1)).trimEnd() + '…' : last);
+        }
+        return lines;
+      }
+
+      function updateWheelRotation(rotation) {
+        wheelGroup.setAttribute('transform', `rotate(${rotation} 320 320)`);
+        for (const item of labelItems) {
+          const currentPoint = pointOnCircle(item.mid + rotation, item.radius);
+          const dx = currentPoint.x - item.basePoint.x;
+          const dy = currentPoint.y - item.basePoint.y;
+          item.node.setAttribute('transform', `translate(${dx.toFixed(3)} ${dy.toFixed(3)})`);
+        }
+      }
+
+      function renderWheel() {
+        wheelGroup.replaceChildren();
+        labelGroup.replaceChildren();
+        labelItems = [];
+        const count = choices.length;
+        if (!count) return;
+        const step = 360 / count;
+        const radius = 278;
+        choices.forEach((label, index) => {
+          const start = -90 + index * step;
+          const end = start + step;
+          const color = COLORS[index % COLORS.length];
+          if (count === 1) {
+            wheelGroup.appendChild(svgEl('circle', { cx: 320, cy: 320, r: radius, fill: color, stroke: '#422719', 'stroke-width': 2.2 }));
+          } else {
+            const p1 = pointOnCircle(start, radius);
+            const p2 = pointOnCircle(end, radius);
+            const path = `M 320 320 L ${p1.x.toFixed(3)} ${p1.y.toFixed(3)} A ${radius} ${radius} 0 ${step > 180 ? 1 : 0} 1 ${p2.x.toFixed(3)} ${p2.y.toFixed(3)} Z`;
+            wheelGroup.appendChild(svgEl('path', { d: path, fill: color, stroke: '#422719', 'stroke-width': 2.4, 'stroke-linejoin': 'round' }));
+          }
+
+          const mid = start + step / 2;
+          const labelRadius = count === 1 ? 150 : 174;
+          const labelPoint = pointOnCircle(mid, labelRadius);
+          const maxChars = count > 18 ? 10 : count > 12 ? 13 : 17;
+          const lines = wrapLabel(label, maxChars);
+          const fontSize = clamp(15.5 - Math.max(0, count - 5) * 0.42 - Math.max(0, label.length - 12) * 0.12, 8.5, 15.5);
+          const labelLayer = svgEl('g', { 'pointer-events': 'none' });
+          const text = svgEl('text', {
+            x: labelPoint.x.toFixed(2), y: (labelPoint.y - ((lines.length - 1) * fontSize * .51)).toFixed(2),
+            'text-anchor': 'middle', 'dominant-baseline': 'middle', fill: '#fff5e9',
+            'font-size': fontSize.toFixed(2), 'font-weight': 760, 'letter-spacing': '-.25',
+            style: 'paint-order:stroke;stroke:rgba(39,22,12,.45);stroke-width:1.6px;stroke-linejoin:round;pointer-events:none'
+          });
+          lines.forEach((line, lineIndex) => {
+            const tspan = svgEl('tspan', { x: labelPoint.x.toFixed(2), dy: lineIndex === 0 ? 0 : (fontSize * 1.08).toFixed(2) });
+            tspan.textContent = line;
+            text.appendChild(tspan);
+          });
+          labelLayer.appendChild(text);
+          labelGroup.appendChild(labelLayer);
+          labelItems.push({ node: labelLayer, mid, radius: labelRadius, basePoint: labelPoint });
+        });
+
+        updateWheelRotation(currentRotation);
+        $('wheelCount').textContent = count;
+        $('optionCount').textContent = String(count).padStart(2, '0');
+        const unavailable = loadingState || databaseUnavailable;
+        spinButton.disabled = unavailable || spinning || count === 0;
+        $('shuffleButton').disabled = unavailable || spinning || count < 2;
+        $('shuffleButton').style.opacity = count < 2 ? '.48' : '1';
+        $('applyButton').disabled = unavailable || spinning || savingChoices;
+        $('resetButton').disabled = unavailable || spinning || savingChoices;
+        editor.disabled = unavailable || spinning || savingChoices;
+        $('clearHistoryButton').disabled = unavailable || spinning;
+        if (unavailable) $('removeWinnerToggle').disabled = true;
+      }
+
+      function showToast(message) {
+        $('toastText').textContent = message;
+        $('toast').classList.add('show');
+        clearTimeout(toastTimeout);
+        toastTimeout = setTimeout(() => $('toast').classList.remove('show'), 3000);
+      }
+
+      function setResultPlaceholder(message = 'All choices are final, unless the boss deems otherwise.') {
+        const wrap = $('resultWrap');
+        wrap.replaceChildren();
+        const placeholder = document.createElement('div');
+        placeholder.className = 'result-placeholder';
+        placeholder.textContent = message;
+        wrap.appendChild(placeholder);
+      }
+
+      function formatTime(item) {
+        const parsed = item.chosenAt ? new Date(item.chosenAt) : null;
+        return parsed && !Number.isNaN(parsed.getTime())
+          ? parsed.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+          : '';
+      }
+
+      function renderHistory() {
+        const host = $('historyList');
+        host.replaceChildren();
+        if (!history.length) {
+          const empty = document.createElement('div');
+          empty.className = 'history-empty';
+          empty.textContent = 'Nothing picked yet. Your results will show up here.';
+          host.appendChild(empty);
+          return;
+        }
+        history.slice(0, 5).forEach((item, idx) => {
+          const row = document.createElement('div');
+          row.className = 'history-item';
+          const number = document.createElement('span');
+          number.className = 'history-number';
+          number.textContent = String(idx + 1).padStart(2, '0');
+          const name = document.createElement('span');
+          name.className = 'history-name';
+          name.title = item.label;
+          name.textContent = item.label;
+          const time = document.createElement('span');
+          time.className = 'history-time';
+          time.textContent = formatTime(item);
+          row.append(number, name, time);
+          host.appendChild(row);
+        });
+      }
+
+      function showResult(label) {
+        const wrap = $('resultWrap');
+        wrap.replaceChildren();
+        const card = document.createElement('div');
+        card.className = 'result-card';
+        const star = document.createElement('div');
+        star.className = 'result-star';
+        star.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m12 2 2.3 7.1L22 12l-7.7 2.9L12 22l-2.3-7.1L2 12l7.7-2.9L12 2Z"/></svg>';
+        const copy = document.createElement('div');
+        copy.className = 'result-copy';
+        const kicker = document.createElement('div');
+        kicker.className = 'result-kicker';
+        kicker.textContent = 'The wheel has squoken';
+        const result = document.createElement('div');
+        result.id = 'resultText';
+        result.textContent = label;
+        copy.append(kicker, result);
+        card.append(star, copy);
+        wrap.appendChild(card);
+      }
+
+      function makeConfetti() {
+        const host = $('celebration');
+        host.replaceChildren();
+        if (reduceMotion) return;
+        const colors = ['#ffb454', '#d97736', '#e5b85c', '#83905b', '#b44732', '#f0d49b'];
+        for (let i = 0; i < 30; i++) {
+          const piece = document.createElement('span');
+          piece.className = 'confetti-piece';
+          piece.style.left = `${Math.random() * 100}%`;
+          piece.style.background = colors[i % colors.length];
+          piece.style.setProperty('--drift', `${Math.round((Math.random() - .5) * 170)}px`);
+          piece.style.setProperty('--distance', `${Math.round(150 + Math.random() * 290)}px`);
+          piece.style.setProperty('--spin', `${Math.round(240 + Math.random() * 820)}deg`);
+          piece.style.setProperty('--fall', `${1.15 + Math.random() * 1.1}s`);
+          piece.style.setProperty('--delay', `${Math.round(Math.random() * 240)}ms`);
+          host.appendChild(piece);
+        }
+        setTimeout(() => host.replaceChildren(), 2700);
+      }
+
+      function animateToIndex(chosenIndex, count) {
+        return new Promise((resolve) => {
+          const targetWithinTurn = mod(-(chosenIndex + .5) * (360 / count), 360);
+          const startingNorm = mod(currentRotation, 360);
+          const alignment = mod(targetWithinTurn - startingNorm, 360);
+          const extraTurns = reduceMotion ? 1 : 6 + Math.floor(Math.random() * 3);
+          const targetRotation = currentRotation + extraTurns * 360 + alignment;
+          const startRotation = currentRotation;
+          const startTime = performance.now();
+          const duration = reduceMotion ? 80 : 5200 + Math.random() * 500;
+          const easeOutQuint = (t) => 1 - Math.pow(1 - t, 5);
+
+          function frame(now) {
+            const t = Math.min(1, (now - startTime) / duration);
+            currentRotation = startRotation + (targetRotation - startRotation) * easeOutQuint(t);
+            updateWheelRotation(currentRotation);
+            if (t < 1) {
+              requestAnimationFrame(frame);
+              return;
+            }
+            currentRotation = mod(targetRotation, 360);
+            updateWheelRotation(currentRotation);
+            resolve();
+          }
+          requestAnimationFrame(frame);
+        });
+      }
+
+      async function spin() {
+        if (spinning || loadingState || !choices.length) return;
+        spinning = true;
+        spinButton.disabled = true;
+        $('shuffleButton').disabled = true;
+        $('applyButton').disabled = true;
+        $('resetButton').disabled = true;
+        editor.disabled = true;
+        $('removeWinnerToggle').disabled = true;
+        wheelPanel.classList.add('is-spinning');
+        setResultPlaceholder('Finding your answer…');
+        try {
+          const data = await api('/api/spin', {
+            method: 'POST',
+            body: JSON.stringify({ removeWinnerAfterSpin: $('removeWinnerToggle').checked })
+          });
+          choices = data.wheelChoices;
+          editor.value = choices.join('\n');
+          renderWheel();
+          await animateToIndex(data.chosenIndex, data.wheelChoices.length);
+
+          history = data.history;
+          const hadWinnerRemoved = data.choices.length < data.wheelChoices.length;
+          choices = data.choices;
+          editor.value = choices.join('\n');
+          if (hadWinnerRemoved) currentRotation = 0;
+          renderHistory();
+          renderWheel();
+          showResult(data.winner);
+          makeConfetti();
+          if (data.lastChoiceRetained) showToast('That was the last choice, so it was kept in the database.');
+        } catch (error) {
+          showToast(error.message || 'Could not spin. Check that the local server is running.');
+          setResultPlaceholder('Spin again when the server is available');
+        } finally {
+          spinning = false;
+          wheelPanel.classList.remove('is-spinning');
+          $('removeWinnerToggle').disabled = false;
+          renderWheel();
+        }
+      }
+
+      async function applyChoices(raw) {
+        if (spinning || savingChoices) return;
+        const next = parseChoices(raw);
+        if (!next.length) return showToast('Add at least one choice before saving your list.');
+        if (next.length > 100) return showToast('Please keep the list to 100 choices or fewer.');
+        if (next.some((choice) => choice.length > 140)) return showToast('Each choice must be 140 characters or fewer.');
+        savingChoices = true;
+        renderWheel();
+        try {
+          const data = await api('/api/choices', { method: 'PUT', body: JSON.stringify({ choices: next }) });
+          choices = data.choices;
+          history = data.history;
+          editor.value = choices.join('\n');
+          fileStatus.textContent = 'SQLite database';
+          fileStatus.title = 'Choices are stored in data/harvest.sqlite';
+          currentRotation = 0;
+          renderWheel();
+          renderHistory();
+          if (history.length) showResult(history[0].label);
+          else setResultPlaceholder();
+          showToast(`${choices.length} ${choices.length === 1 ? 'choice' : 'choices'} saved to the database.`);
+        } catch (error) {
+          showToast(error.message || 'Could not save choices to the database.');
+        } finally {
+          savingChoices = false;
+          renderWheel();
+        }
+      }
+
+      async function restoreDefaults() {
+        if (spinning || savingChoices) return;
+        savingChoices = true;
+        renderWheel();
+        try {
+          const data = await api('/api/choices/reset', { method: 'POST' });
+          choices = data.choices;
+          history = data.history;
+          editor.value = choices.join('\n');
+          fileStatus.textContent = 'SQLite database';
+          currentRotation = 0;
+          renderWheel();
+          renderHistory();
+          if (history.length) showResult(history[0].label);
+          else setResultPlaceholder();
+          showToast('Default choices restored in the database.');
+        } catch (error) {
+          showToast(error.message || 'Could not restore default choices.');
+        } finally {
+          savingChoices = false;
+          renderWheel();
+        }
+      }
+
+      async function shuffleChoices() {
+        if (spinning || loadingState || choices.length < 2) return;
+        try {
+          const data = await api('/api/shuffle', { method: 'POST' });
+          choices = data.choices;
+          history = data.history;
+          editor.value = choices.join('\n');
+          currentRotation = 0;
+          fileStatus.textContent = 'SQLite database';
+          renderWheel();
+          renderHistory();
+          showToast('Choice order shuffled and saved.');
+        } catch (error) {
+          showToast(error.message || 'Could not shuffle choices.');
+        }
+      }
+
+      async function loadState() {
+        try {
+          const data = await api('/api/state');
+          databaseUnavailable = false;
+          choices = data.choices;
+          history = data.history;
+          editor.value = choices.join('\n');
+          $('removeWinnerToggle').checked = Boolean(data.settings && data.settings.removeWinnerAfterSpin);
+          fileStatus.textContent = 'SQLite database';
+          fileStatus.title = 'Loaded from data/harvest.sqlite';
+          renderWheel();
+          renderHistory();
+          if (history.length) showResult(history[0].label);
+        } catch (error) {
+          databaseUnavailable = true;
+          fileStatus.textContent = 'Database unavailable';
+          fileStatus.title = 'Start the app with start.bat or start.sh';
+          showToast('Could not connect to the database. Start the app using its launcher.');
+        } finally {
+          loadingState = false;
+          renderWheel();
+        }
+      }
+
+      $('applyButton').addEventListener('click', () => applyChoices(editor.value));
+      $('resetButton').addEventListener('click', restoreDefaults);
+      spinButton.addEventListener('click', spin);
+      $('shuffleButton').addEventListener('click', shuffleChoices);
+      $('clearHistoryButton').addEventListener('click', async () => {
+        try {
+          await api('/api/history', { method: 'DELETE' });
+          history = [];
+          renderHistory();
+          setResultPlaceholder();
+          showToast('Recent results cleared from the database.');
+        } catch (error) {
+          showToast(error.message || 'Could not clear recent results.');
+        }
+      });
+      $('removeWinnerToggle').addEventListener('change', async (event) => {
+        const input = event.currentTarget;
+        const wanted = input.checked;
+        input.disabled = true;
+        try {
+          await api('/api/settings', { method: 'PUT', body: JSON.stringify({ removeWinnerAfterSpin: wanted }) });
+          showToast(wanted ? 'Winner removal enabled and saved.' : 'Winner removal disabled and saved.');
+        } catch (error) {
+          input.checked = !wanted;
+          showToast(error.message || 'Could not save this setting.');
+        } finally {
+          input.disabled = spinning;
+        }
+      });
+      document.addEventListener('keydown', (event) => {
+        if (event.code !== 'Space' || event.repeat || event.ctrlKey || event.altKey || event.metaKey) return;
+        const target = event.target;
+        if (target instanceof HTMLElement && (target.isContentEditable || ['TEXTAREA', 'INPUT', 'BUTTON', 'SELECT'].includes(target.tagName))) return;
+        event.preventDefault();
+        spin();
+      });
+
+      renderWheel();
+      loadState();
+    })();
+  </script>
+</body>
+</html>
